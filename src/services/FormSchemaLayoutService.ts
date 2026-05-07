@@ -108,6 +108,42 @@ const DEFAULT_INTERNAL_WORKFLOW_KEYWORDS: string[] = [
   'processed'
 ];
 
+const REQUESTER_PERSON_KEYWORDS: string[] = [
+  'requester',
+  'requestor',
+  'submitter',
+  'student',
+  'employee',
+  'preparedby',
+  'prepared by',
+  'createdby',
+  'created by'
+];
+
+const CONTACT_PERSON_KEYWORDS: string[] = [
+  'contact',
+  'owner',
+  'manager',
+  'supervisor',
+  'coordinator',
+  'advisor'
+];
+
+const REVIEW_PERSON_KEYWORDS: string[] = [
+  'approver',
+  'approval',
+  'reviewer',
+  'review',
+  'chair',
+  'dean',
+  'director',
+  'vp',
+  'vice president',
+  'decision',
+  'assignedto',
+  'assigned to'
+];
+
 const containsAny = (text: string, keywords: string[]): boolean => {
   const normalizedText = text.toLowerCase();
 
@@ -127,6 +163,9 @@ const shouldHideField = (field: IField): boolean => {
 
 const hasAnyKeyword = (field: IField, keywords: string[]): boolean =>
   containsAny(getSearchableText(field), keywords);
+
+const isUserField = (field: IField): boolean =>
+  field.typeAsString === 'User' || field.typeAsString === 'UserMulti';
 
 const createLabel = (field: IField): string =>
   field.title
@@ -182,7 +221,7 @@ const addSectionIfNotEmpty = (
 
 const shouldUseFullWidth = (field: IField): boolean => {
   if (field.typeAsString === 'Note') return true;
-  if (field.typeAsString === 'User') return true;
+  if (isUserField(field)) return true;
   if (field.typeAsString === 'MultiChoice') return true;
 
   return hasAnyKeyword(field, [
@@ -245,6 +284,16 @@ const createAutomaticRows = (
   return rows;
 };
 
+const classifyUserFieldBucket = (field: IField): 'requester' | 'contact' | 'review' | 'other' => {
+  if (!isUserField(field)) return 'other';
+
+  if (hasAnyKeyword(field, REVIEW_PERSON_KEYWORDS)) return 'review';
+  if (hasAnyKeyword(field, REQUESTER_PERSON_KEYWORDS)) return 'requester';
+  if (hasAnyKeyword(field, CONTACT_PERSON_KEYWORDS)) return 'contact';
+
+  return 'other';
+};
+
 export const generateFormLayoutFromFields = (fields: IField[]): IFormJsonConfig => {
   const hiddenFields = [...DEFAULT_HIDDEN_FIELDS];
 
@@ -266,31 +315,55 @@ export const generateFormLayoutFromFields = (fields: IField[]): IFormJsonConfig 
     return matches;
   };
 
-  const requesterFields = takeFields([
-    'requester',
-    'requestor',
-    'student',
-    'employee',
-    'submitter',
-    'first',
-    'middle',
-    'last',
-    'name',
-    'banner',
-    'sid',
-    'snumber',
-    'idnumber'
-  ]);
+  const requesterUserFields = visibleFields
+    .filter(field =>
+      groupedFieldNames.indexOf(field.internalName) === -1 &&
+      classifyUserFieldBucket(field) === 'requester'
+    )
+    .map(field => field.internalName);
 
-  const contactFields = takeFields([
-    'email',
-    'phone',
-    'mobile',
-    'address',
-    'city',
-    'state',
-    'zip'
-  ]);
+  requesterUserFields.forEach(fieldName => groupedFieldNames.push(fieldName));
+
+  const requesterFields = [
+    ...requesterUserFields,
+    ...takeFields([
+      'requester',
+      'requestor',
+      'student',
+      'employee',
+      'submitter',
+      'first',
+      'middle',
+      'last',
+      'name',
+      'banner',
+      'sid',
+      'snumber',
+      'idnumber'
+    ])
+  ];
+
+  const contactUserFields = visibleFields
+    .filter(field =>
+      groupedFieldNames.indexOf(field.internalName) === -1 &&
+      classifyUserFieldBucket(field) === 'contact'
+    )
+    .map(field => field.internalName);
+
+  contactUserFields.forEach(fieldName => groupedFieldNames.push(fieldName));
+
+  const contactFields = [
+    ...contactUserFields,
+    ...takeFields([
+      'email',
+      'phone',
+      'mobile',
+      'address',
+      'city',
+      'state',
+      'zip'
+    ])
+  ];
 
   const academicFields = takeFields([
     'course',
@@ -356,17 +429,31 @@ export const generateFormLayoutFromFields = (fields: IField[]): IFormJsonConfig 
     'date'
   ]);
 
-  const reviewFields = visibleFields
+  const reviewUserFields = visibleFields
     .filter(field =>
       groupedFieldNames.indexOf(field.internalName) === -1 &&
-      (
-        hasAnyKeyword(field, DEFAULT_INTERNAL_WORKFLOW_KEYWORDS) ||
-        field.typeAsString === 'User'
-      )
+      classifyUserFieldBucket(field) === 'review'
     )
     .map(field => field.internalName);
 
-  reviewFields.forEach(fieldName => groupedFieldNames.push(fieldName));
+  reviewUserFields.forEach(fieldName => groupedFieldNames.push(fieldName));
+
+  const reviewFields = [
+    ...reviewUserFields,
+    ...visibleFields
+      .filter(field =>
+        groupedFieldNames.indexOf(field.internalName) === -1 &&
+        (
+          hasAnyKeyword(field, DEFAULT_INTERNAL_WORKFLOW_KEYWORDS) ||
+          isUserField(field)
+        )
+      )
+      .map(field => field.internalName)
+  ];
+
+  reviewFields.forEach(fieldName => {
+    if (groupedFieldNames.indexOf(fieldName) === -1) groupedFieldNames.push(fieldName);
+  });
 
   const otherFields = visibleFields
     .filter(field => groupedFieldNames.indexOf(field.internalName) === -1)
@@ -384,7 +471,7 @@ export const generateFormLayoutFromFields = (fields: IField[]): IFormJsonConfig 
   addSectionIfNotEmpty(
     sections,
     'Contact Information',
-    'Email, phone, address, and related contact details.',
+    'Email, phone, address, contact person, and related contact details.',
     contactFields
   );
 
@@ -419,7 +506,7 @@ export const generateFormLayoutFromFields = (fields: IField[]): IFormJsonConfig 
   addSectionIfNotEmpty(
     sections,
     'Review / Approval',
-    'Review notes, approvals, decisions, and internal follow-up fields.',
+    'Reviewers, approvers, decisions, approval notes, and internal follow-up fields.',
     reviewFields
   );
 
@@ -476,9 +563,20 @@ export const generateFormLayoutFromFields = (fields: IField[]): IFormJsonConfig 
       fieldConfig[field.internalName].width = 'full';
     }
 
-    if (field.typeAsString === 'User') {
-      helpText[field.internalName] = 'Enter the person’s email address.';
-      fieldConfig[field.internalName].placeholder = 'name@frontrange.edu';
+    if (isUserField(field)) {
+      const bucket = classifyUserFieldBucket(field);
+
+      if (bucket === 'review') {
+        helpText[field.internalName] = 'Search for the reviewer, approver, or decision maker by name or email.';
+      } else if (bucket === 'contact') {
+        helpText[field.internalName] = 'Search for the contact person or owner by name or email.';
+      } else if (bucket === 'requester') {
+        helpText[field.internalName] = 'Search for the requester, student, employee, or submitter by name or email.';
+      } else {
+        helpText[field.internalName] = 'Search for a person by name or email.';
+      }
+
+      fieldConfig[field.internalName].placeholder = 'Enter a name or email address';
       fieldConfig[field.internalName].width = 'full';
     }
 
