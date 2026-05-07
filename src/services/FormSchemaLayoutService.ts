@@ -194,10 +194,59 @@ const shouldUseFullWidth = (field: IField): boolean => {
   ]);
 };
 
+const buildFieldLookup = (fields: IField[]): { [internalName: string]: IField } => {
+  const lookup: { [internalName: string]: IField } = {};
+
+  fields.forEach(field => {
+    lookup[field.internalName] = field;
+  });
+
+  return lookup;
+};
+
+const createAutomaticRows = (
+  orderedFieldNames: string[],
+  fieldLookup: { [internalName: string]: IField }
+): string[][] => {
+  const rows: string[][] = [];
+  let pendingHalfWidthField: string | undefined;
+
+  orderedFieldNames.forEach(fieldName => {
+    const field = fieldLookup[fieldName];
+
+    if (!field) return;
+
+    if (shouldUseFullWidth(field)) {
+      if (pendingHalfWidthField) {
+        rows.push([pendingHalfWidthField]);
+        pendingHalfWidthField = undefined;
+      }
+
+      rows.push([fieldName]);
+      return;
+    }
+
+    if (!pendingHalfWidthField) {
+      pendingHalfWidthField = fieldName;
+      return;
+    }
+
+    rows.push([pendingHalfWidthField, fieldName]);
+    pendingHalfWidthField = undefined;
+  });
+
+  if (pendingHalfWidthField) {
+    rows.push([pendingHalfWidthField]);
+  }
+
+  return rows;
+};
+
 export const generateFormLayoutFromFields = (fields: IField[]): IFormJsonConfig => {
   const hiddenFields = [...DEFAULT_HIDDEN_FIELDS];
 
   const visibleFields = fields.filter(field => !shouldHideField(field));
+  const fieldLookup = buildFieldLookup(visibleFields);
 
   const groupedFieldNames: string[] = [];
 
@@ -439,9 +488,17 @@ export const generateFormLayoutFromFields = (fields: IField[]): IFormJsonConfig 
     }
   });
 
+  const orderedFieldNames = sections.reduce(
+    (accumulator: string[], section) => accumulator.concat(section.fields),
+    []
+  );
+
   return {
     hiddenFields,
     sections,
+    layout: {
+      rows: createAutomaticRows(orderedFieldNames, fieldLookup)
+    },
     labels,
     helpText,
     fields: fieldConfig,
