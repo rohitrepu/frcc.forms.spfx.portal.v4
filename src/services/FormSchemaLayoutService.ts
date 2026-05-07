@@ -89,6 +89,8 @@ const DEFAULT_HIDDEN_FIELDS: string[] = [
   'ComplianceAssetId'
 ];
 
+const MAX_FIELDS_PER_SECTION = 8;
+
 const DEFAULT_INTERNAL_WORKFLOW_KEYWORDS: string[] = [
   'workflow',
   'stage',
@@ -135,20 +137,43 @@ const createLabel = (field: IField): string =>
     .replace(/CutScore/g, 'Cut Score')
     .trim();
 
+const splitFieldsIntoBalancedChunks = (
+  fields: string[],
+  maxFieldsPerSection: number = MAX_FIELDS_PER_SECTION
+): string[][] => {
+  if (fields.length <= maxFieldsPerSection) return [fields];
+
+  const chunks: string[][] = [];
+
+  for (let i = 0; i < fields.length; i += maxFieldsPerSection) {
+    chunks.push(fields.slice(i, i + maxFieldsPerSection));
+  }
+
+  return chunks;
+};
+
 const addSectionIfNotEmpty = (
   sections: ISectionConfig[],
   title: string,
   description: string,
   fields: string[],
-  layout: SectionLayout = 'twoColumn'
+  layout: SectionLayout = 'twoColumn',
+  maxFieldsPerSection: number = MAX_FIELDS_PER_SECTION
 ): void => {
   if (fields.length === 0) return;
 
-  sections.push({
-    title,
-    description,
-    layout,
-    fields
+  const fieldChunks = splitFieldsIntoBalancedChunks(fields, maxFieldsPerSection);
+
+  fieldChunks.forEach((fieldChunk, index) => {
+    sections.push({
+      title: index === 0 ? title : `${title} Continued ${index + 1}`,
+      description:
+        index === 0
+          ? description
+          : `Additional ${title.toLowerCase()} fields.`,
+      layout,
+      fields: fieldChunk
+    });
   });
 };
 
