@@ -166,11 +166,14 @@ const addSectionIfNotEmpty = (
 
   fieldChunks.forEach((fieldChunk, index) => {
     sections.push({
-      title: index === 0 ? title : `${title} Continued ${index + 1}`,
+      title:
+        index === 0
+          ? title
+          : `Additional ${title.replace(' Information', '').replace(' / ', ' ').trim()}`,
       description:
         index === 0
           ? description
-          : `Additional ${title.toLowerCase()} fields.`,
+          : `Additional fields related to ${title.toLowerCase().replace('information', '').trim()}.`,
       layout,
       fields: fieldChunk
     });
