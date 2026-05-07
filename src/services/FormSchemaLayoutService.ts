@@ -144,6 +144,56 @@ const REVIEW_PERSON_KEYWORDS: string[] = [
   'assigned to'
 ];
 
+const ORGANIZATION_LOOKUP_KEYWORDS: string[] = [
+  'department',
+  'dept',
+  'division',
+  'office',
+  'unit',
+  'team',
+  'area',
+  'location',
+  'building',
+  'room'
+];
+
+const CAMPUS_LOOKUP_KEYWORDS: string[] = [
+  'campus',
+  'location',
+  'site',
+  'college',
+  'center'
+];
+
+const CATEGORY_CHOICE_KEYWORDS: string[] = [
+  'category',
+  'type',
+  'request type',
+  'form type',
+  'classification',
+  'topic',
+  'reason code'
+];
+
+const STATUS_WORKFLOW_KEYWORDS: string[] = [
+  'status',
+  'stage',
+  'phase',
+  'state',
+  'decision',
+  'outcome',
+  'approval status',
+  'review status'
+];
+
+const PRIORITY_CHOICE_KEYWORDS: string[] = [
+  'priority',
+  'urgency',
+  'severity',
+  'impact',
+  'risk'
+];
+
 const containsAny = (text: string, keywords: string[]): boolean => {
   const normalizedText = text.toLowerCase();
 
@@ -166,6 +216,12 @@ const hasAnyKeyword = (field: IField, keywords: string[]): boolean =>
 
 const isUserField = (field: IField): boolean =>
   field.typeAsString === 'User' || field.typeAsString === 'UserMulti';
+
+const isChoiceField = (field: IField): boolean =>
+  field.typeAsString === 'Choice' || field.typeAsString === 'MultiChoice';
+
+const isLookupField = (field: IField): boolean =>
+  field.typeAsString === 'Lookup' || field.typeAsString === 'LookupMulti';
 
 const createLabel = (field: IField): string =>
   field.title
@@ -222,7 +278,7 @@ const addSectionIfNotEmpty = (
 const shouldUseFullWidth = (field: IField): boolean => {
   if (field.typeAsString === 'Note') return true;
   if (isUserField(field)) return true;
-  if (field.typeAsString === 'MultiChoice') return true;
+  if (field.typeAsString === 'MultiChoice' || field.typeAsString === 'LookupMulti') return true;
 
   return hasAnyKeyword(field, [
     'description',
@@ -292,6 +348,75 @@ const classifyUserFieldBucket = (field: IField): 'requester' | 'contact' | 'revi
   if (hasAnyKeyword(field, CONTACT_PERSON_KEYWORDS)) return 'contact';
 
   return 'other';
+};
+
+const classifyChoiceOrLookupBucket = (
+  field: IField
+): 'organization' | 'campus' | 'category' | 'status' | 'priority' | 'other' => {
+  if (!isChoiceField(field) && !isLookupField(field)) return 'other';
+
+  if (hasAnyKeyword(field, STATUS_WORKFLOW_KEYWORDS)) return 'status';
+  if (hasAnyKeyword(field, PRIORITY_CHOICE_KEYWORDS)) return 'priority';
+  if (hasAnyKeyword(field, ORGANIZATION_LOOKUP_KEYWORDS)) return 'organization';
+  if (hasAnyKeyword(field, CAMPUS_LOOKUP_KEYWORDS)) return 'campus';
+  if (hasAnyKeyword(field, CATEGORY_CHOICE_KEYWORDS)) return 'category';
+
+  return 'other';
+};
+
+const getChoiceOrLookupHelpText = (field: IField): string => {
+  const bucket = classifyChoiceOrLookupBucket(field);
+
+  if (bucket === 'organization') {
+    return 'Select the appropriate department, division, office, or organizational area.';
+  }
+
+  if (bucket === 'campus') {
+    return 'Select the appropriate campus, location, or college site.';
+  }
+
+  if (bucket === 'category') {
+    return 'Select the option that best describes this request.';
+  }
+
+  if (bucket === 'status') {
+    return 'Select the current status, stage, decision, or workflow outcome.';
+  }
+
+  if (bucket === 'priority') {
+    return 'Select the priority, urgency, or impact level for this request.';
+  }
+
+  return 'Select the appropriate value from the list.';
+};
+
+const getChoiceOrLookupPlaceholder = (field: IField): string => {
+  const bucket = classifyChoiceOrLookupBucket(field);
+
+  if (bucket === 'organization') return 'Select department or division';
+  if (bucket === 'campus') return 'Select campus or location';
+  if (bucket === 'category') return 'Select request type';
+  if (bucket === 'status') return 'Select status';
+  if (bucket === 'priority') return 'Select priority';
+
+  return 'Select an option';
+};
+
+const collectFieldsByBucket = (
+  visibleFields: IField[],
+  groupedFieldNames: string[],
+  bucket: 'organization' | 'campus' | 'category' | 'status' | 'priority'
+): string[] => {
+  const matches = visibleFields
+    .filter(field =>
+      groupedFieldNames.indexOf(field.internalName) === -1 &&
+      classifyChoiceOrLookupBucket(field) === bucket
+    )
+    .map(field => field.internalName);
+
+  matches.forEach(fieldName => groupedFieldNames.push(fieldName));
+
+  return matches;
 };
 
 export const generateFormLayoutFromFields = (fields: IField[]): IFormJsonConfig => {
@@ -365,43 +490,75 @@ export const generateFormLayoutFromFields = (fields: IField[]): IFormJsonConfig 
     ])
   ];
 
-  const academicFields = takeFields([
-    'course',
-    'subject',
-    'prefix',
-    'number',
-    'section',
-    'crn',
-    'prereq',
-    'prerequisite',
-    'placement',
-    'cutscore',
-    'cut score',
-    'term',
-    'semester',
-    'year',
-    'program',
-    'degree',
-    'major',
-    'catalog',
-    'curriculum',
-    'campus'
-  ]);
+  const organizationFields = collectFieldsByBucket(
+    visibleFields,
+    groupedFieldNames,
+    'organization'
+  );
 
-  const requestFields = takeFields([
-    'request',
-    'type',
-    'category',
-    'department',
-    'division',
-    'priority',
-    'summary',
-    'description',
-    'reason',
-    'justification',
-    'purpose',
-    'details'
-  ]);
+  const campusFields = collectFieldsByBucket(
+    visibleFields,
+    groupedFieldNames,
+    'campus'
+  );
+
+  const categoryFields = collectFieldsByBucket(
+    visibleFields,
+    groupedFieldNames,
+    'category'
+  );
+
+  const priorityFields = collectFieldsByBucket(
+    visibleFields,
+    groupedFieldNames,
+    'priority'
+  );
+
+  const academicFields = [
+    ...campusFields,
+    ...takeFields([
+      'course',
+      'subject',
+      'prefix',
+      'number',
+      'section',
+      'crn',
+      'prereq',
+      'prerequisite',
+      'placement',
+      'cutscore',
+      'cut score',
+      'term',
+      'semester',
+      'year',
+      'program',
+      'degree',
+      'major',
+      'catalog',
+      'curriculum',
+      'campus'
+    ])
+  ];
+
+  const requestFields = [
+    ...categoryFields,
+    ...priorityFields,
+    ...organizationFields,
+    ...takeFields([
+      'request',
+      'type',
+      'category',
+      'department',
+      'division',
+      'priority',
+      'summary',
+      'description',
+      'reason',
+      'justification',
+      'purpose',
+      'details'
+    ])
+  ];
 
   const financialFields = takeFields([
     'amount',
@@ -438,8 +595,15 @@ export const generateFormLayoutFromFields = (fields: IField[]): IFormJsonConfig 
 
   reviewUserFields.forEach(fieldName => groupedFieldNames.push(fieldName));
 
+  const statusFields = collectFieldsByBucket(
+    visibleFields,
+    groupedFieldNames,
+    'status'
+  );
+
   const reviewFields = [
     ...reviewUserFields,
+    ...statusFields,
     ...visibleFields
       .filter(field =>
         groupedFieldNames.indexOf(field.internalName) === -1 &&
@@ -455,9 +619,21 @@ export const generateFormLayoutFromFields = (fields: IField[]): IFormJsonConfig 
     if (groupedFieldNames.indexOf(fieldName) === -1) groupedFieldNames.push(fieldName);
   });
 
-  const otherFields = visibleFields
-    .filter(field => groupedFieldNames.indexOf(field.internalName) === -1)
+  const otherChoiceLookupFields = visibleFields
+    .filter(field =>
+      groupedFieldNames.indexOf(field.internalName) === -1 &&
+      (isChoiceField(field) || isLookupField(field))
+    )
     .map(field => field.internalName);
+
+  otherChoiceLookupFields.forEach(fieldName => groupedFieldNames.push(fieldName));
+
+  const otherFields = [
+    ...otherChoiceLookupFields,
+    ...visibleFields
+      .filter(field => groupedFieldNames.indexOf(field.internalName) === -1)
+      .map(field => field.internalName)
+  ];
 
   const sections: ISectionConfig[] = [];
 
@@ -485,7 +661,7 @@ export const generateFormLayoutFromFields = (fields: IField[]): IFormJsonConfig 
   addSectionIfNotEmpty(
     sections,
     'Request Details',
-    'Main request details and supporting explanation.',
+    'Main request details, classification, department, priority, and supporting explanation.',
     requestFields
   );
 
@@ -506,14 +682,14 @@ export const generateFormLayoutFromFields = (fields: IField[]): IFormJsonConfig 
   addSectionIfNotEmpty(
     sections,
     'Review / Approval',
-    'Reviewers, approvers, decisions, approval notes, and internal follow-up fields.',
+    'Reviewers, approvers, status, decisions, approval notes, and internal follow-up fields.',
     reviewFields
   );
 
   addSectionIfNotEmpty(
     sections,
     'Other Information',
-    'Additional fields from the SharePoint list.',
+    'Additional choice, lookup, and supporting fields from the SharePoint list.',
     otherFields
   );
 
@@ -580,8 +756,9 @@ export const generateFormLayoutFromFields = (fields: IField[]): IFormJsonConfig 
       fieldConfig[field.internalName].width = 'full';
     }
 
-    if (field.typeAsString === 'Lookup') {
-      helpText[field.internalName] = 'Select the appropriate value from the list.';
+    if (isChoiceField(field) || isLookupField(field)) {
+      helpText[field.internalName] = getChoiceOrLookupHelpText(field);
+      fieldConfig[field.internalName].placeholder = getChoiceOrLookupPlaceholder(field);
     }
 
     if (field.typeAsString === 'Note') {
