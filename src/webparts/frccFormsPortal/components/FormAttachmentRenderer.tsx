@@ -1,3 +1,4 @@
+/* eslint-disable @rushstack/no-new-null */
 import * as React from "react";
 import styles from "./FrccFormsPortal.module.scss";
 

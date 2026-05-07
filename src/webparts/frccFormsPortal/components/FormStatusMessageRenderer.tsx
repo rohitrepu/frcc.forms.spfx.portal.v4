@@ -1,3 +1,4 @@
+/* eslint-disable @rushstack/no-new-null */
 import * as React from "react";
 
 export type FormStatusMessageVariant = "error" | "success" | "info" | "warning";
@@ -6,6 +7,8 @@ export interface IFormStatusMessageRendererProps {
   variant: FormStatusMessageVariant;
   message: string;
   title?: string;
+  actionLabel?: string;
+  actionUrl?: string;
 }
 
 const getStatusStyles = (
@@ -16,6 +19,8 @@ const getStatusStyles = (
   color: string;
   background: string;
   border: string;
+  buttonBackground: string;
+  buttonColor: string;
 } => {
   if (variant === "success") {
     return {
@@ -24,6 +29,8 @@ const getStatusStyles = (
       color: "#166534",
       background: "#dcfce7",
       border: "#bbf7d0",
+      buttonBackground: "#166534",
+      buttonColor: "#ffffff",
     };
   }
 
@@ -34,6 +41,8 @@ const getStatusStyles = (
       color: "#92400e",
       background: "#fffbeb",
       border: "#fde68a",
+      buttonBackground: "#92400e",
+      buttonColor: "#ffffff",
     };
   }
 
@@ -44,6 +53,8 @@ const getStatusStyles = (
       color: "#075985",
       background: "#e0f2fe",
       border: "#bae6fd",
+      buttonBackground: "#075985",
+      buttonColor: "#ffffff",
     };
   }
 
@@ -53,13 +64,15 @@ const getStatusStyles = (
     color: "#991b1b",
     background: "#fee2e2",
     border: "#fecaca",
+    buttonBackground: "#991b1b",
+    buttonColor: "#ffffff",
   };
 };
 
 export default function FormStatusMessageRenderer(
   props: IFormStatusMessageRendererProps,
 ): React.ReactElement<IFormStatusMessageRendererProps> | null {
-  const { variant, message, title } = props;
+  const { variant, message, title, actionLabel, actionUrl } = props;
 
   if (!message || message.trim() === "") return null;
 
@@ -102,7 +115,7 @@ export default function FormStatusMessageRenderer(
         {styles.icon}
       </span>
 
-      <span style={{ minWidth: 0 }}>
+      <span style={{ minWidth: 0, flex: 1 }}>
         <span
           style={{
             display: "block",
@@ -113,6 +126,26 @@ export default function FormStatusMessageRenderer(
           {title || styles.title}
         </span>
         <span style={{ display: "block" }}>{message}</span>
+
+        {actionUrl && actionLabel && (
+          <button
+            type="button"
+            onClick={() => window.open(actionUrl, "_blank", "noopener,noreferrer")}
+            style={{
+              marginTop: "10px",
+              border: "none",
+              borderRadius: "8px",
+              background: styles.buttonBackground,
+              color: styles.buttonColor,
+              padding: "7px 10px",
+              fontSize: "12px",
+              fontWeight: 800,
+              cursor: "pointer",
+            }}
+          >
+            {actionLabel}
+          </button>
+        )}
       </span>
     </div>
   );

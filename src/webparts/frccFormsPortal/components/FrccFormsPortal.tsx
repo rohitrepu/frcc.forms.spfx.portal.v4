@@ -389,6 +389,7 @@ export default function FrccFormsPortal(
     React.useState<boolean>(false);
   const [errorMessage, setErrorMessage] = React.useState<string>("");
   const [successMessage, setSuccessMessage] = React.useState<string>("");
+  const [successActionUrl, setSuccessActionUrl] = React.useState<string>("");
   const [divisionFilter, setDivisionFilter] = React.useState<string>("All");
   const [formTypeFilter, setFormTypeFilter] = React.useState<string>("All");
   const [audienceFilter, setAudienceFilter] = React.useState<string>("All");
@@ -859,6 +860,7 @@ export default function FrccFormsPortal(
         setFields([]);
         setErrorMessage("");
         setSuccessMessage("");
+      setSuccessActionUrl("");
         setFormData({});
         setValidationErrors({});
         setValidationWarnings({});
@@ -873,7 +875,7 @@ export default function FrccFormsPortal(
       if (!selectedForm.listId) {
         setFields([]);
         setErrorMessage(
-          `Missing ListId for ${selectedForm.title}. Add ListId in FRCC Forms Configuration.`,
+          `This form is missing its ListId in FRCC Forms Configuration, so the portal cannot load or submit the SharePoint-backed form. Add the ListId for ${selectedForm.title}, then refresh the portal.`,
         );
         return;
       }
@@ -882,6 +884,7 @@ export default function FrccFormsPortal(
         setIsLoadingFields(true);
         setErrorMessage("");
         setSuccessMessage("");
+      setSuccessActionUrl("");
         setFormData({});
         setValidationErrors({});
         setValidationWarnings({});
@@ -1337,6 +1340,7 @@ export default function FrccFormsPortal(
       setIsGeneratingJson(true);
       setErrorMessage("");
       setSuccessMessage("");
+      setSuccessActionUrl("");
 
       const generatedJson = generateFormLayoutFromFields(fields) as IFormJsonConfig;
       const nextHiddenFields = generatedJson.hiddenFields || [];
@@ -1368,6 +1372,7 @@ export default function FrccFormsPortal(
         ),
       );
 
+      setSuccessActionUrl("");
       setSuccessMessage(
         "Enterprise FormJson generated and saved successfully.",
       );
@@ -1380,15 +1385,36 @@ export default function FrccFormsPortal(
     }
   };
 
+
+  const getMyRequestsUrl = (listUrl?: string): string => {
+    if (!listUrl || listUrl.trim() === "") return "";
+
+    const separator = listUrl.indexOf("?") === -1 ? "?" : "&";
+
+    return `${listUrl}${separator}FilterField1=Author&FilterValue1=%5BMe%5D&FilterType1=User`;
+  };
+
+  const getDisplayItemUrl = (listUrl: string | undefined, itemId: number): string => {
+    if (!listUrl || Number.isNaN(itemId)) return "";
+
+    const cleanUrl = listUrl.split("?")[0];
+    const listRootUrl = cleanUrl
+      .replace(/\/Forms\/AllItems\.aspx$/i, "")
+      .replace(/\/AllItems\.aspx$/i, "");
+
+    return `${listRootUrl}/DispForm.aspx?ID=${itemId}`;
+  };
+
   const handleSubmit = async (): Promise<void> => {
     if (!selectedForm) return;
 
     setErrorMessage("");
     setSuccessMessage("");
+      setSuccessActionUrl("");
 
     if (!selectedForm.listId) {
       setErrorMessage(
-        `Missing ListId for ${selectedForm.title}. Add ListId in FRCC Forms Configuration.`,
+        `This form is missing its ListId in FRCC Forms Configuration, so the portal cannot load or submit the SharePoint-backed form. Add the ListId for ${selectedForm.title}, then refresh the portal.`,
       );
       return;
     }
@@ -1397,7 +1423,7 @@ export default function FrccFormsPortal(
 
     if (!selectedPermissions || !selectedPermissions.canAdd) {
       setErrorMessage(
-        "You have read-only access to this form. You can view existing requests, but you cannot submit a new request.",
+        "You have read-only access to this form. Submission is disabled, but you can open My Requests to view items you created.",
       );
       return;
     }
@@ -1479,10 +1505,13 @@ export default function FrccFormsPortal(
         await uploadAttachmentsToItem(selectedForm.listId, createdItemId);
       }
 
+      const createdItemUrl = getDisplayItemUrl(selectedForm.listUrl, createdItemId);
+
+      setSuccessActionUrl(createdItemUrl || getMyRequestsUrl(selectedForm.listUrl));
       setSuccessMessage(
         attachmentItems.length > 0
-          ? "Form submitted successfully with attachments."
-          : "Form submitted successfully.",
+          ? `Form submitted successfully with attachments. Request ID: ${createdItemId}.`
+          : `Form submitted successfully. Request ID: ${createdItemId}.`,
       );
       setFormData({});
       setAttachmentItems([]);
@@ -1500,6 +1529,7 @@ export default function FrccFormsPortal(
   const handleSelectForm = (form: IFormConfig): void => {
     setSelectedForm(form);
     setSuccessMessage("");
+      setSuccessActionUrl("");
     setErrorMessage("");
     setAttachmentItems([]);
     setPeopleSuggestions({});
@@ -1657,6 +1687,7 @@ export default function FrccFormsPortal(
       </span>
     );
   };
+
 
   const renderNavFormButton = (form: IFormConfig): React.ReactElement => {
     const formType =
@@ -2162,8 +2193,8 @@ export default function FrccFormsPortal(
           }}
         >
           {selectedCanSubmit
-            ? "Start a new request here, or open the SharePoint list view to review, search, edit, or display existing submissions."
-            : "You have read-only access to this form. You can open the SharePoint list view to review existing submissions, but you cannot submit a new request from the portal."}
+            ? "Start a new request here, or open My Requests to review submissions created by your account."
+            : "You have read-only access to this form. Submission is disabled, but you can open My Requests to review submissions created by your account."}
         </p>
 
         {!selectedCanSubmit && (
@@ -2180,7 +2211,8 @@ export default function FrccFormsPortal(
             }}
           >
             Read-only access: submission is disabled because your account does
-            not have Add Items permission on this list.
+            not have Add Items permission on this list. My Requests opens only
+            items created by your account.
           </div>
         )}
 
@@ -2198,6 +2230,7 @@ export default function FrccFormsPortal(
               style={primaryButtonStyle}
               onClick={() => {
                 setSuccessMessage("");
+      setSuccessActionUrl("");
                 setErrorMessage("");
                 setFormData({});
                 setAttachmentItems([]);
@@ -2216,13 +2249,13 @@ export default function FrccFormsPortal(
               className={styles.secondaryButton}
               onClick={() =>
                 window.open(
-                  selectedForm.listUrl,
+                  getMyRequestsUrl(selectedForm.listUrl),
                   "_blank",
                   "noopener,noreferrer",
                 )
               }
             >
-              View Existing Requests
+              View My Requests
             </button>
           )}
         </div>
@@ -2816,6 +2849,8 @@ export default function FrccFormsPortal(
                 variant="success"
                 title="Saved successfully"
                 message={successMessage}
+                actionLabel={successActionUrl ? "Open submitted request" : undefined}
+                actionUrl={successActionUrl || undefined}
               />
             )}
 
