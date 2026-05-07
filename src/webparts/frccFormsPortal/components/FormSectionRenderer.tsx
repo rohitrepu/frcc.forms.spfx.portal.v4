@@ -110,14 +110,18 @@ export default function FormSectionRenderer(
     return (
       <div
         key={section.title || `section-${sectionIndex}`}
-        style={{ marginBottom: formSpecificPresentation ? "8px" : "28px" }}
+        style={{
+          marginBottom: formSpecificPresentation ? "32px" : "36px",
+          paddingBottom: formSpecificPresentation ? "6px" : undefined,
+        }}
       >
         {showSectionHeader && (
           <h3
             style={{
               ...sectionHeaderStyle,
               background: `linear-gradient(90deg, ${accentColor} 0%, #006fbf 100%)`,
-              marginBottom: section.description ? "10px" : "18px",
+              marginBottom: section.description ? "12px" : "22px",
+              letterSpacing: "0.01em",
             }}
           >
             {section.title}
@@ -129,7 +133,9 @@ export default function FormSectionRenderer(
             style={{
               fontSize: "13px",
               color: themeTextSecondary,
-              marginBottom: "16px",
+              lineHeight: 1.6,
+              marginBottom: "22px",
+              maxWidth: "820px",
             }}
           >
             {section.description}
@@ -142,7 +148,7 @@ export default function FormSectionRenderer(
             sectionLayout === "oneColumn"
               ? undefined
               : formSpecificPresentation
-                ? { gap: "0 32px" }
+                ? { gap: "0 36px" }
                 : undefined
           }
         >
@@ -175,13 +181,13 @@ export default function FormSectionRenderer(
 
   if (remainingFields.length > 0) {
     sectionElements.push(
-      <div key="other-fields" style={{ marginBottom: "28px" }}>
+      <div key="other-fields" style={{ marginBottom: formSpecificPresentation ? "32px" : "36px" }}>
         {!config.hideSectionHeaders && (
           <h3
             style={{
               ...sectionHeaderStyle,
               background: `linear-gradient(90deg, ${accentColor} 0%, #006fbf 100%)`,
-              marginBottom: "18px",
+              marginBottom: "22px",
             }}
           >
             Other Information

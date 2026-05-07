@@ -126,29 +126,33 @@ export default function FormFieldRenderer(
     ...inputStyle,
     background: inputBackground,
     border: inputBorder,
-    borderRadius: formSpecificPresentation ? "3px" : inputStyle.borderRadius,
-    minHeight: formSpecificPresentation ? "38px" : undefined,
+    borderRadius: formSpecificPresentation ? "5px" : inputStyle.borderRadius,
+    minHeight: formSpecificPresentation ? "42px" : "40px",
     fontSize: formSpecificPresentation ? "14px" : inputStyle.fontSize,
+    lineHeight: 1.45,
+    boxSizing: "border-box",
     boxShadow: config.theme?.inputBorder === "none" ? "none" : undefined,
   };
   const fieldLabelStyle: React.CSSProperties = {
     ...labelStyle,
     fontSize: config.theme?.labelFontSize || labelStyle.fontSize,
-    fontWeight: formSpecificPresentation ? 500 : labelStyle.fontWeight,
+    fontWeight: formSpecificPresentation ? 600 : labelStyle.fontWeight,
     color: config.theme?.labelColor || labelStyle.color,
-    marginBottom: help ? "7px" : "8px",
+    marginBottom: help ? "7px" : "9px",
+    lineHeight: 1.35,
   };
   const helpStyle: React.CSSProperties = {
     fontSize: formSpecificPresentation ? "13px" : "12px",
     color: config.theme?.descriptionColor || theme.text.secondary,
-    lineHeight: 1.55,
-    marginBottom: "10px",
+    lineHeight: 1.6,
+    marginBottom: "12px",
+    maxWidth: "760px",
   };
 
   return (
     <div
       key={field.internalName}
-      style={{ marginBottom: formSpecificPresentation ? "30px" : "12px" }}
+      style={{ marginBottom: formSpecificPresentation ? "34px" : "18px" }}
     >
       <label style={fieldLabelStyle}>
         {label}
@@ -174,7 +178,7 @@ export default function FormFieldRenderer(
         <textarea
           placeholder={fieldUiConfig ? fieldUiConfig.placeholder : undefined}
           disabled={readOnly}
-          rows={fieldUiConfig?.rows || (formSpecificPresentation ? 5 : undefined)}
+          rows={fieldUiConfig?.rows || (formSpecificPresentation ? 6 : undefined)}
           style={{
             ...fieldInputStyle,
             minHeight: formSpecificPresentation ? "96px" : undefined,
@@ -211,7 +215,7 @@ export default function FormFieldRenderer(
         <select
           multiple
           disabled={readOnly}
-          style={{ ...fieldInputStyle, minHeight: "80px" }}
+          style={{ ...fieldInputStyle, minHeight: "96px" }}
           value={(value as string[]) || []}
           onChange={(event) => {
             const selectedValues = Array.from(
@@ -446,13 +450,35 @@ export default function FormFieldRenderer(
       )}
 
       {validationWarnings[field.internalName] && (
-        <div style={{ color: "#8a6d00", fontSize: "12px" }}>
+        <div
+          style={{
+            color: "#8a6d00",
+            background: "#fffbeb",
+            border: "1px solid #fde68a",
+            borderRadius: "8px",
+            fontSize: "12px",
+            lineHeight: 1.45,
+            marginTop: "8px",
+            padding: "8px 10px",
+          }}
+        >
           {validationWarnings[field.internalName]}
         </div>
       )}
 
       {validationErrors[field.internalName] && (
-        <div style={{ color: "#a80000", fontSize: "12px" }}>
+        <div
+          style={{
+            color: "#991b1b",
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            borderRadius: "8px",
+            fontSize: "12px",
+            lineHeight: 1.45,
+            marginTop: "8px",
+            padding: "8px 10px",
+          }}
+        >
           {validationErrors[field.internalName]}
         </div>
       )}

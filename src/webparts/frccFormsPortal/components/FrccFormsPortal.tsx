@@ -4,6 +4,9 @@ import { SPPermission } from "@microsoft/sp-page-context";
 import styles from "./FrccFormsPortal.module.scss";
 import type { IFrccFormsPortalProps } from "./IFrccFormsPortalProps";
 import FormFieldRenderer from "./FormFieldRenderer";
+import FormAttachmentRenderer from "./FormAttachmentRenderer";
+import FormSectionRenderer from "./FormSectionRenderer";
+import FormStatusMessageRenderer from "./FormStatusMessageRenderer";
 import {
   getActiveForms,
   updateFormJson,
@@ -2016,116 +2019,19 @@ export default function FrccFormsPortal(
     );
   };
 
-  const renderConfiguredAttachmentField = (): React.ReactElement | null => {
-    const fieldUiConfig = getFieldUiConfig("Attachments");
-
-    if (fieldUiConfig?.hidden === true) return null;
-
-    const label = fieldUiConfig?.label || "Attachments";
-    const help = fieldUiConfig?.description || fieldUiConfig?.helpText;
-    const buttonText = fieldUiConfig?.buttonText || "Add attachments";
-
-    return (
-      <div
-        key="Attachments"
-        style={{ marginBottom: formSpecificPresentation ? "30px" : "12px" }}
-      >
-        <label
-          style={{
-            ...labelStyle,
-            fontSize: config.theme?.labelFontSize || labelStyle.fontSize,
-            fontWeight: formSpecificPresentation ? 500 : labelStyle.fontWeight,
-            color: config.theme?.labelColor || labelStyle.color,
-            marginBottom: "8px",
-          }}
-        >
-          {label}
-        </label>
-
-        {help && (
-          <div
-            style={{
-              fontSize: formSpecificPresentation ? "13px" : "12px",
-              color: config.theme?.descriptionColor || theme.text.secondary,
-              lineHeight: 1.55,
-              marginBottom: "10px",
-            }}
-          >
-            {help}
-          </div>
-        )}
-
-        <input
-          ref={attachmentInputRef}
-          type="file"
-          multiple
-          style={{ display: "none" }}
-          onChange={(event) => handleAttachmentSelection(event.target.files)}
-        />
-
-        <button
-          type="button"
-          className={styles.secondaryButton}
-          onClick={() => attachmentInputRef.current?.click()}
-          style={{
-            borderColor: formSpecificPresentation ? "#b9b9b9" : undefined,
-            borderRadius: formSpecificPresentation ? "3px" : undefined,
-            background: "#ffffff",
-            color: "#333333",
-            padding: formSpecificPresentation ? "8px 14px" : undefined,
-            fontWeight: 600,
-          }}
-        >
-          + {buttonText}
-        </button>
-
-        {attachmentItems.length > 0 && (
-          <div
-            style={{
-              marginTop: "12px",
-              display: "grid",
-              gap: "8px",
-            }}
-          >
-            {attachmentItems.map((attachment) => (
-              <div
-                key={attachment.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "12px",
-                  padding: "8px 10px",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "6px",
-                  background: "#ffffff",
-                  fontSize: "13px",
-                }}
-              >
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {attachment.file.name}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => removeAttachment(attachment.id)}
-                  style={{
-                    border: "none",
-                    background: "transparent",
-                    color: "#a4262c",
-                    cursor: "pointer",
-                    fontWeight: 700,
-                  }}
-                  aria-label={`Remove ${attachment.file.name}`}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
+  const renderConfiguredAttachmentField = (): React.ReactElement | null => (
+    <FormAttachmentRenderer
+      fieldUiConfig={getFieldUiConfig("Attachments")}
+      labelStyle={labelStyle}
+      formSpecificPresentation={formSpecificPresentation}
+      configTheme={config.theme}
+      themeTextSecondary={theme.text.secondary}
+      attachmentInputRef={attachmentInputRef}
+      attachmentItems={attachmentItems}
+      handleAttachmentSelection={handleAttachmentSelection}
+      removeAttachment={removeAttachment}
+    />
+  );
 
   const renderField = (field: IField): React.ReactElement => (
     <FormFieldRenderer
@@ -2526,166 +2432,21 @@ export default function FrccFormsPortal(
     );
   };
 
-  const renderSections = (): React.ReactElement[] => {
-    const sections = config.sections || [];
-    const defaultLayout =
-      typeof config.layout === "string"
-        ? normalizeLayout(config.layout)
-        : "twoColumn";
-
-    if (sections.length === 0) {
-      return [
-        <div key="default-section">
-          {renderRowsLayout() || (
-            <div
-              className={
-                defaultLayout === "oneColumn" ? "" : styles.sectionGrid
-              }
-            >
-              {renderableFields.map((field) => (
-                <div
-                  key={field.internalName}
-                  className={
-                    defaultLayout === "oneColumn"
-                      ? styles.sectionFull
-                      : getFieldWrapperClass(field)
-                  }
-                >
-                  {renderField(field)}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>,
-      ];
-    }
-
-    const renderedFieldNames: string[] = [];
-
-    const sectionElements = sections.map((section, sectionIndex) => {
-      const sectionLayout = normalizeLayout(section.layout || defaultLayout);
-      const sectionFields = section.fields
-        .map((fieldName) => {
-          if (fieldName === "Attachments") return undefined;
-
-          return renderableFields.filter(
-            (field) => field.internalName === fieldName,
-          )[0];
-        })
-        .filter((field): field is IField => field !== undefined);
-
-      section.fields.forEach((fieldName) => renderedFieldNames.push(fieldName));
-
-      const configuredElements = section.fields
-        .map((fieldName) => renderConfiguredFieldByName(fieldName))
-        .filter((element): element is React.ReactElement => element !== null);
-
-      const showSectionHeader =
-        !config.hideSectionHeaders && section.title && section.title.trim() !== "";
-
-      return (
-        <div
-          key={section.title || `section-${sectionIndex}`}
-          style={{ marginBottom: formSpecificPresentation ? "8px" : "28px" }}
-        >
-          {showSectionHeader && (
-            <h3
-              style={{
-                ...sectionHeaderStyle,
-                background: `linear-gradient(90deg, ${accentColor} 0%, #006fbf 100%)`,
-                marginBottom: section.description ? "10px" : "18px",
-              }}
-            >
-              {section.title}
-            </h3>
-          )}
-
-          {section.description && !config.hideSectionHeaders && (
-            <div
-              style={{
-                fontSize: "13px",
-                color: theme.text.secondary,
-                marginBottom: "16px",
-              }}
-            >
-              {section.description}
-            </div>
-          )}
-
-          <div
-            className={sectionLayout === "oneColumn" ? "" : styles.sectionGrid}
-            style={
-              sectionLayout === "oneColumn"
-                ? undefined
-                : formSpecificPresentation
-                  ? { gap: "0 32px" }
-                  : undefined
-            }
-          >
-            {configuredElements.map((element, index) => {
-              const field = sectionFields[index];
-
-              return (
-                <div
-                  key={element.key || `configured-field-${index}`}
-                  className={
-                    sectionLayout === "oneColumn"
-                      ? styles.sectionFull
-                      : field
-                        ? getFieldWrapperClass(field)
-                        : styles.sectionFull
-                  }
-                >
-                  {element}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      );
-    });
-
-    const remainingFields = renderableFields.filter(
-      (field) => renderedFieldNames.indexOf(field.internalName) === -1,
-    );
-
-    if (remainingFields.length > 0) {
-      sectionElements.push(
-        <div key="other-fields" style={{ marginBottom: "28px" }}>
-          {!config.hideSectionHeaders && (
-            <h3
-              style={{
-                ...sectionHeaderStyle,
-                background: `linear-gradient(90deg, ${accentColor} 0%, #006fbf 100%)`,
-                marginBottom: "18px",
-              }}
-            >
-              Other Information
-            </h3>
-          )}
-
-          <div
-            className={defaultLayout === "oneColumn" ? "" : styles.sectionGrid}
-          >
-            {remainingFields.map((field) => (
-              <div
-                key={field.internalName}
-                className={
-                  defaultLayout === "oneColumn"
-                    ? styles.sectionFull
-                    : getFieldWrapperClass(field)
-                }
-              >
-                {renderField(field)}
-              </div>
-            ))}
-          </div>
-        </div>,
-      );
-    }
-
-    return sectionElements;
-  };
+  const renderSections = (): React.ReactElement => (
+    <FormSectionRenderer
+      config={config}
+      renderableFields={renderableFields}
+      formSpecificPresentation={formSpecificPresentation}
+      accentColor={accentColor}
+      themeTextSecondary={theme.text.secondary}
+      sectionHeaderStyle={sectionHeaderStyle}
+      normalizeLayout={normalizeLayout}
+      renderRowsLayout={renderRowsLayout}
+      renderConfiguredFieldByName={renderConfiguredFieldByName}
+      getFieldWrapperClass={getFieldWrapperClass}
+      renderField={renderField}
+    />
+  );
 
   return (
     <div
@@ -2951,7 +2712,11 @@ export default function FrccFormsPortal(
           {isLoadingForms && <div>Loading forms...</div>}
 
           {!isLoadingForms && errorMessage && forms.length === 0 && (
-            <div>{errorMessage}</div>
+            <FormStatusMessageRenderer
+              variant="error"
+              title="Forms could not be loaded"
+              message={errorMessage}
+            />
           )}
 
           {!isLoadingForms && !errorMessage && filteredForms.length === 0 && (
@@ -3029,6 +2794,7 @@ export default function FrccFormsPortal(
               maxWidth: formSpecificPresentation ? formCardMaxWidth : "1180px",
               background: formSpecificPresentation ? formCardBackground : undefined,
               padding: formSpecificPresentation ? formCardPadding : undefined,
+              lineHeight: 1.5,
             }}
           >
             {renderFormJsonHeader()}
@@ -3038,35 +2804,19 @@ export default function FrccFormsPortal(
               errorMessage &&
               selectedForm &&
               !selectedFormIsPdf && (
-                <div
-                  style={{
-                    color: "#991b1b",
-                    background: "#fee2e2",
-                    border: "1px solid #fecaca",
-                    borderRadius: "10px",
-                    padding: "11px 13px",
-                    marginBottom: "14px",
-                    fontSize: "13px",
-                  }}
-                >
-                  {errorMessage}
-                </div>
+                <FormStatusMessageRenderer
+                  variant="error"
+                  title="Please review this form"
+                  message={errorMessage}
+                />
               )}
 
             {!isLoadingFields && successMessage && (
-              <div
-                style={{
-                  color: "#166534",
-                  background: "#dcfce7",
-                  border: "1px solid #bbf7d0",
-                  borderRadius: "10px",
-                  padding: "11px 13px",
-                  marginBottom: "14px",
-                  fontSize: "13px",
-                }}
-              >
-                {successMessage}
-              </div>
+              <FormStatusMessageRenderer
+                variant="success"
+                title="Saved successfully"
+                message={successMessage}
+              />
             )}
 
             {!isLoadingFields && !selectedForm && (
